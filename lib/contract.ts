@@ -1,67 +1,94 @@
 /**
- * Placeholder functions for smart contract integration
- * These will be implemented during the workshop
+ * Contract utilities and helper functions for AdwaitToken
+ * 
+ * This file contains reusable helper functions for working with the AdwaitToken contract.
+ * Most contract interactions are done directly via Wagmi hooks in components.
  */
 
-export interface MessageBoardData {
-  message: string;
-  author: string;
-  messageCount: number;
+import { formatUnits, parseUnits } from 'viem';
+
+/**
+ * Format token amount from wei to human-readable format
+ * @param amount Amount in wei (smallest unit)
+ * @param decimals Token decimals (default: 18)
+ * @returns Formatted string with commas
+ */
+export function formatTokenAmount(amount: bigint | undefined, decimals: number = 18): string {
+  if (!amount) return '0';
+  return parseFloat(formatUnits(amount, decimals)).toLocaleString('en-US', {
+    maximumFractionDigits: 4,
+  });
 }
 
 /**
- * Connect to the user's wallet
- * @returns The connected wallet address
+ * Parse human-readable amount to wei
+ * @param amount Human-readable amount (e.g., "100.5")
+ * @param decimals Token decimals (default: 18)
+ * @returns Amount in wei
  */
-export async function connectWallet(): Promise<string> {
-  // TODO: Implement wallet connection during workshop
-  console.log('TODO: Implement connectWallet()');
-  throw new Error('Wallet connection not implemented yet');
+export function parseTokenAmount(amount: string, decimals: number = 18): bigint {
+  return parseUnits(amount, decimals);
 }
 
 /**
- * Get the current message board data from the smart contract
- * @returns The message board data
+ * Shorten an Ethereum address for display
+ * @param address Full address
+ * @param chars Number of chars to show at start/end (default: 4)
+ * @returns Shortened address (e.g., "0x1234...5678")
  */
-export async function getMessageBoardData(): Promise<MessageBoardData> {
-  // TODO: Implement reading from smart contract during workshop
-  console.log('TODO: Implement getMessageBoardData()');
-  
-  // Mock data for now
-  return {
-    message: 'Welcome to the MessageBoard! Connect your wallet to update the message.',
-    author: '0x0000000000000000000000000000000000000000',
-    messageCount: 0,
+export function shortenAddress(address: string, chars: number = 4): string {
+  if (!address) return '';
+  return `${address.slice(0, chars + 2)}...${address.slice(-chars)}`;
+}
+
+/**
+ * Get role name from bytes32 hash
+ * @param roleHash The keccak256 hash of the role
+ * @returns Human-readable role name
+ */
+export function getRoleName(roleHash: string): string {
+  const roles: Record<string, string> = {
+    '0x0000000000000000000000000000000000000000000000000000000000000000': 'DEFAULT_ADMIN',
+    '0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6': 'MINTER',
   };
+  return roles[roleHash] || 'UNKNOWN_ROLE';
 }
 
 /**
- * Update the message on the smart contract
- * @param newMessage The new message to set
+ * Check if an error is due to user rejection
+ * @param error Error object
+ * @returns True if user rejected the transaction
  */
-export async function updateMessage(newMessage: string): Promise<void> {
-  // TODO: Implement writing to smart contract during workshop
-  console.log('TODO: Implement updateMessage()', newMessage);
-  throw new Error('Message update not implemented yet');
+export function isUserRejection(error: any): boolean {
+  return (
+    error?.message?.includes('User rejected') ||
+    error?.message?.includes('User denied') ||
+    error?.code === 4001
+  );
 }
 
 /**
- * Check if wallet is connected
- * @returns True if wallet is connected
+ * Get a user-friendly error message
+ * @param error Error object
+ * @returns User-friendly error message
  */
-export async function isWalletConnected(): Promise<boolean> {
-  // TODO: Implement wallet connection check during workshop
-  console.log('TODO: Implement isWalletConnected()');
-  return false;
-}
-
-/**
- * Get the connected wallet address
- * @returns The wallet address or null if not connected
- */
-export async function getConnectedAddress(): Promise<string | null> {
-  // TODO: Implement getting connected address during workshop
-  console.log('TODO: Implement getConnectedAddress()');
-  return null;
+export function getErrorMessage(error: any): string {
+  if (isUserRejection(error)) {
+    return 'Transaction cancelled by user';
+  }
+  
+  if (error?.message?.includes('EnforcedPause')) {
+    return 'Contract is paused. Only admin can unpause it.';
+  }
+  
+  if (error?.message?.includes('AccessControlUnauthorizedAccount')) {
+    return 'You do not have permission to perform this action';
+  }
+  
+  if (error?.message?.includes('ERC20InsufficientBalance')) {
+    return 'Insufficient token balance';
+  }
+  
+  return error?.message || 'Transaction failed';
 }
 
